@@ -2,3 +2,4 @@ datasets/
 runs/
 __pycache__/
 log/
+*.pt
