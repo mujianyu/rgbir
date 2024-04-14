@@ -13,13 +13,6 @@ session = onnxruntime.InferenceSession(onnx_weights)
 model = attempt_load(torch_weights)
  
 input1 = torch.randn(1, 4, 640, 640, dtype=torch.float32) 
-if torch.cuda.is_available():  
-    device = torch.device('cuda')  # 创建一个 GPU 设备对象  
-    input1 = input1.to(device)  # 将输入张量移动到 GPU 上  
-else:  
-    device = torch.device('cpu')  # 如果没有 GPU，则使用 CPU
-
-
 with torch.no_grad():
     torch_output = model(input1)[0]
 
@@ -42,6 +35,8 @@ print("onnx的输出")
 print(onnx_output[0])
 print("torch的输出")
 print(to_numpy(torch_output))
+#测试输出不同
+print("onnx的输出与torch输出是否有不同(精确到小数点后3位)：")
 print(np.testing.assert_almost_equal(to_numpy(torch_output), onnx_output[0], decimal=3))
 
 # provider = "CPUExecutionProvider"
