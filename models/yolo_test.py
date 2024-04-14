@@ -524,6 +524,15 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c1 = ch[f[0]]+ch[f[1]]
             c2 = ch[f[0]]
             args = [c1,c2]
+        elif m is CA_Block:
+            c1 = ch[f[0]]+ch[f[1]]
+            c2 = ch[f[0]]
+            args = [c1,c2]
+        elif m is SE:
+            
+            c1 = ch[f[0]]+ch[f[1]]
+            c2 = ch[f[0]]
+            args = [c1,c2]    
         elif m is Concat3:
             c1=ch[f[0]]+ch[f[1]]
             c2= ch[f[0]]

@@ -22,61 +22,57 @@ from utils.torch_utils import time_synchronized
 from torch.nn import init, Sequential
 
 
-# class Concat3(nn.Module):  
-#     def __init__(self, c1,c2,dimension=1):  
-#         super(Concat3, self).__init__()  
-#         self.k = c2  
-#         self.d=dimension
+class Concat3(nn.Module):  
+    def __init__(self, c1,c2,dimension=1):  
+        super(Concat3, self).__init__()  
+        self.k = c2  
+        self.d=dimension
         
   
-#     def forward(self, x):  
-#         x=torch.cat(x, self.d)
+    def forward(self, x):  
+        x=torch.cat(x, self.d)
 
-#         # 假设输入x的shape是(batch_size, num_channels, height, width)  
-#         batch_size, num_channels, height, width = x.size()  
+        # 假设输入x的shape是(batch_size, num_channels, height, width)  
+        batch_size, num_channels, height, width = x.size()  
           
-#         # 执行全局平均池化  batch_size num_channels
-#         pooled = F.avg_pool2d(x, (height, width)).squeeze(-1).squeeze(-1)  
+        # 执行全局平均池化  batch_size num_channels
+        pooled = F.avg_pool2d(x, (height, width)).squeeze(-1).squeeze(-1)  
           
-#         # 获取全局池化后的特征大小  沿着维度1最大前k个 
-#         pooled_values, pooled_indices = torch.topk(pooled, self.k , dim=1)  
-#         # 首先，我们将其展平为一维张量 batch * numchannels
-#         pooled_indices_flat = pooled_indices.view(-1)  
+        # 获取全局池化后的特征大小  沿着维度1最大前k个 
+        pooled_values, pooled_indices = torch.topk(pooled, self.k , dim=1)  
+        # 首先，我们将其展平为一维张量 batch * numchannels
+        pooled_indices_flat = pooled_indices.view(-1)  
         
-#         # 接下来，我们需要创建一个范围张量，用于在重塑索引时分隔不同样本的索引   每次batch的起始位置
-#         # shape 为[batch_size] 
-#         batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
-#         #batch_range.view(-1, 1) 展开成为列向量 [batch_size,1]
-#         # expand_as 函数不会分配新的内存，而是返回一个新的视图，其中原始数据被广播到目标形状
+        # 接下来，我们需要创建一个范围张量，用于在重塑索引时分隔不同样本的索引   每次batch的起始位置
+        # shape 为[batch_size] 
+        batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
+        #batch_range.view(-1, 1) 展开成为列向量 [batch_size,1]
+        # expand_as 函数不会分配新的内存，而是返回一个新的视图，其中原始数据被广播到目标形状
         
-#         batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
+        batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
         
-#         # 现在，我们可以将这两个张量相加，得到每个样本的完整通道索引   对应为batch *batch_size
-#         combined_indices = pooled_indices_flat + batch_range  
+        # 现在，我们可以将这两个张量相加，得到每个样本的完整通道索引   对应为batch *batch_size
+        combined_indices = pooled_indices_flat + batch_range  
         
-#         # 使用这些索引来从 x 中选择通道  
-#         # 注意：我们需要将索引重塑为 (batch_size * k,)，以匹配 x 的形状  
-#         # 然后，使用这些索引来选择 x 中的对应通道  
-#         selected_channels = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, self.k, height, width)  
+        # 使用这些索引来从 x 中选择通道  
+        # 注意：我们需要将索引重塑为 (batch_size * k,)，以匹配 x 的形状  
+        # 然后，使用这些索引来选择 x 中的对应通道  
+        selected_channels = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, self.k, height, width)  
   
   
        
           
-#         return selected_channels  
+        return selected_channels  
 
 class Concat3(nn.Module):  
     def __init__(self, c1, c2, dimension=1):  
         super(Concat3, self).__init__()  
         self.k = c2  
         self.d = dimension  
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 确定设备  
         self.avg=nn.AdaptiveAvgPool2d(output_size=(1, 1)) 
     def forward(self, x):  
-        
-    
-  
         x = torch.cat(x, self.d)  
-  
+
         batch_size, num_channels, height, width = x.size()  
           
         pooled = self.avg(x).squeeze(-1).squeeze(-1)  
@@ -327,11 +323,13 @@ class Concat(nn.Module):
 
     def forward(self, x):
         # print(x.shape)
+
         return torch.cat(x, self.d)
 
 
 class Add(nn.Module):
     #  Add two tensors
+    
     def __init__(self, arg):
         super(Add, self).__init__()
         # 128 256 512
@@ -339,6 +337,101 @@ class Add(nn.Module):
   
     def forward(self, x):
         return torch.add(x[0], x[1])
+
+import torch
+from torch import nn
+ 
+class SE(nn.Module):
+    # ratio代表第一个全连接下降通道的倍数
+    def __init__(self, c1,c2, ratio=4,diamension=1):
+        super().__init__()
+        self.d = diamension#沿着哪个维度进行拼接
+        self.conv=nn.Conv2d(c1,c2,1,1,bias=False)
+        in_channel=c1
+        # 全局平均池化，输出的特征图的宽高=1
+        self.avg_pool = nn.AdaptiveAvgPool2d(output_size=1)
+ 
+        # 第一个全连接层将特征图的通道数下降4倍
+        self.fc1 = nn.Linear(in_features=in_channel, out_features=in_channel//ratio, bias=False)
+ 
+        # relu激活，可自行换别的激活函数
+        self.relu = nn.ReLU()
+ 
+        # 第二个全连接层恢复通道数
+        self.fc2 = nn.Linear(in_features=in_channel//ratio, out_features=in_channel, bias=False)
+ 
+        # sigmoid激活函数，将权值归一化到0-1
+        self.sigmoid = nn.Sigmoid()
+        
+    # 前向传播
+    def forward(self, x):  # inputs 代表输入特征图
+        x=torch.cat(x, self.d)
+        
+        inputs=x   
+        b, c, h, w = x.shape
+ 
+        # 全局平均池化 [b,c,h,w]==>[b,c,1,1]
+        x = self.avg_pool(x)
+ 
+        # 维度调整 [b,c,1,1]==>[b,c]
+        x = x.view([b,c])
+        
+        # 第一个全连接下降通道 [b,c]==>[b,c//4]
+        x = self.fc1(x)
+ 
+        x = self.relu(x)
+ 
+        # 第二个全连接上升通道 [b,c//4]==>[b,c]
+        x = self.fc2(x)
+ 
+        # 对通道权重归一化处理
+        x = self.sigmoid(x)
+        
+        # 调整维度 [b,c]==>[b,c,1,1]
+        x = x.view([b,c,1,1])
+        
+        # 将输入特征图和通道权重相乘
+        outputs = x * inputs
+
+
+        x=self.conv(outputs)
+        return x
+
+class CA_Block(nn.Module):
+    def __init__(self, c1,c2, reduction=16,diamension=1):
+        super(CA_Block, self).__init__()
+        self.d = diamension#沿着哪个维度进行拼接
+        self.conv=nn.Conv2d(c1,c2,1,1,bias=False)
+        channel=c1
+        self.conv_1x1 = nn.Conv2d(in_channels=channel, out_channels=channel//reduction, kernel_size=1, stride=1, bias=False)
+ 
+        self.relu   = nn.ReLU()
+        self.bn     = nn.BatchNorm2d(channel//reduction)
+ 
+        self.F_h = nn.Conv2d(in_channels=channel//reduction, out_channels=channel, kernel_size=1, stride=1, bias=False)
+        self.F_w = nn.Conv2d(in_channels=channel//reduction, out_channels=channel, kernel_size=1, stride=1, bias=False)
+ 
+        self.sigmoid_h = nn.Sigmoid()
+        self.sigmoid_w = nn.Sigmoid()
+ 
+    def forward(self, x):
+        x=torch.cat(x, self.d)
+        _, _, h, w = x.size()
+        
+        x_h = torch.mean(x, dim = 3, keepdim = True).permute(0, 1, 3, 2)
+        x_w = torch.mean(x, dim = 2, keepdim = True)
+ 
+        x_cat_conv_relu = self.relu(self.bn(self.conv_1x1(torch.cat((x_h, x_w), 3))))
+ 
+        x_cat_conv_split_h, x_cat_conv_split_w = x_cat_conv_relu.split([h, w], 3)
+ 
+        s_h = self.sigmoid_h(self.F_h(x_cat_conv_split_h.permute(0, 1, 3, 2)))
+        s_w = self.sigmoid_w(self.F_w(x_cat_conv_split_w))
+ 
+        out = x * s_h.expand_as(x) * s_w.expand_as(x)
+        out=self.conv(out)
+        return out
+
 
 class Shuffle(nn.Module):
     #  Add two tensors
