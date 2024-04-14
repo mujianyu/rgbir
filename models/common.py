@@ -22,6 +22,75 @@ from utils.torch_utils import time_synchronized
 from torch.nn import init, Sequential
 
 
+# class Concat3(nn.Module):  
+#     def __init__(self, c1,c2,dimension=1):  
+#         super(Concat3, self).__init__()  
+#         self.k = c2  
+#         self.d=dimension
+        
+  
+#     def forward(self, x):  
+#         x=torch.cat(x, self.d)
+
+#         # 假设输入x的shape是(batch_size, num_channels, height, width)  
+#         batch_size, num_channels, height, width = x.size()  
+          
+#         # 执行全局平均池化  batch_size num_channels
+#         pooled = F.avg_pool2d(x, (height, width)).squeeze(-1).squeeze(-1)  
+          
+#         # 获取全局池化后的特征大小  沿着维度1最大前k个 
+#         pooled_values, pooled_indices = torch.topk(pooled, self.k , dim=1)  
+#         # 首先，我们将其展平为一维张量 batch * numchannels
+#         pooled_indices_flat = pooled_indices.view(-1)  
+        
+#         # 接下来，我们需要创建一个范围张量，用于在重塑索引时分隔不同样本的索引   每次batch的起始位置
+#         # shape 为[batch_size] 
+#         batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
+#         #batch_range.view(-1, 1) 展开成为列向量 [batch_size,1]
+#         # expand_as 函数不会分配新的内存，而是返回一个新的视图，其中原始数据被广播到目标形状
+        
+#         batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
+        
+#         # 现在，我们可以将这两个张量相加，得到每个样本的完整通道索引   对应为batch *batch_size
+#         combined_indices = pooled_indices_flat + batch_range  
+        
+#         # 使用这些索引来从 x 中选择通道  
+#         # 注意：我们需要将索引重塑为 (batch_size * k,)，以匹配 x 的形状  
+#         # 然后，使用这些索引来选择 x 中的对应通道  
+#         selected_channels = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, self.k, height, width)  
+  
+  
+       
+          
+#         return selected_channels  
+
+class Concat3(nn.Module):  
+    def __init__(self, c1, c2, dimension=1):  
+        super(Concat3, self).__init__()  
+        self.k = c2  
+        self.d = dimension  
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 确定设备  
+        self.avg=nn.AdaptiveAvgPool2d(output_size=(1, 1)) 
+    def forward(self, x):  
+        
+    
+  
+        x = torch.cat(x, self.d)  
+  
+        batch_size, num_channels, height, width = x.size()  
+          
+        pooled = self.avg(x).squeeze(-1).squeeze(-1)  
+        pooled_values, pooled_indices = torch.topk(pooled, self.k, dim=1)  
+        pooled_indices_flat = pooled_indices.view(-1)  
+          
+        batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
+        batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
+          
+        combined_indices = pooled_indices_flat + batch_range  
+        selected_channels = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, self.k, height, width)  
+          
+        return selected_channels  
+  
 def autopad(k, p=None):  # kernel, padding
     # Pad to 'same'
     if p is None:

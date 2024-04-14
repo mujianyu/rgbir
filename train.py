@@ -925,7 +925,7 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='yolov5s.pt', help='initial weights path')
-    parser.add_argument('--cfg', type=str, default='3ir.yaml', help='model.yaml path')
+    parser.add_argument('--cfg', type=str, default='Concat3.yaml', help='model.yaml path')
     parser.add_argument('--data', type=str, default='./data/multispectral/DroneVechile.yaml', help='data.yaml path')
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=100)

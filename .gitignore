@@ -5,3 +5,4 @@ log/
 *.pt
 *.onnx
 *.zip
+*.7z

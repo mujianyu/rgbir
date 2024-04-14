@@ -7,17 +7,26 @@ import numpy as np
 def to_numpy(tensor):
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
  
-onnx_weights = '/home/mjy/yolov5/runs/train/exp2/weights/best.onnx'  # onnx权重路径
-torch_weights = '/home/mjy/yolov5/runs/train/exp2/weights/best.pt'  # torch权重路径
+onnx_weights = '/home/mjy/yolov5/runs/train/exp10/weights/best.onnx'  # onnx权重路径
+torch_weights = '/home/mjy/yolov5/runs/train/exp10/weights/best.pt'  # torch权重路径
 session = onnxruntime.InferenceSession(onnx_weights)
 model = attempt_load(torch_weights)
  
-print(session)
-input1 = torch.randn(1, 4, 640, 640)   # tensor
-img = input1.numpy().astype(np.float32)  # array
-model.eval()
+input1 = torch.randn(1, 4, 640, 640, dtype=torch.float32) 
+if torch.cuda.is_available():  
+    device = torch.device('cuda')  # 创建一个 GPU 设备对象  
+    input1 = input1.to(device)  # 将输入张量移动到 GPU 上  
+else:  
+    device = torch.device('cpu')  # 如果没有 GPU，则使用 CPU
+
+
 with torch.no_grad():
     torch_output = model(input1)[0]
+
+img = input1.to('cpu').numpy().astype(np.float32) # array
+
+model.eval()
+
 
 input_name = session.get_inputs()[0].name  
 output_name = session.get_outputs()[0].name  
