@@ -127,6 +127,8 @@ class BottleneckCSP(nn.Module):
         y1 = self.cv3(self.m(self.cv1(x)))
         y2 = self.cv2(x)
         return self.cv4(self.act(self.bn(torch.cat((y1, y2), dim=1))))
+
+    
 class Concat2(nn.Module):
     # Concatenate a list of tensors along dimension
     def __init__(self, c1,c2,dimension=1):
@@ -139,7 +141,6 @@ class Concat2(nn.Module):
         x=self.conv(x)
         return x
     
-
 class C3(nn.Module):
     # CSP Bottleneck with 3 convolutions
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion

@@ -211,7 +211,7 @@ class Model(nn.Module):
         self.info()
         logger.info('')
 
-    def forward(self, x, x2, augment=False, profile=False):
+    def forward(self, x, augment=False, profile=False):
         if augment:
             img_size = x.shape[-2:]  # height, width
             s = [1, 0.83, 0.67]  # scales
@@ -229,10 +229,10 @@ class Model(nn.Module):
                 y.append(yi)
             return torch.cat(y, 1), None  # augmented inference, train
         else:
-            return self.forward_once(x, x2, profile)  # single-scale inference, train
+            return self.forward_once(x, profile)  # single-scale inference, train
 
 
-    def forward_once(self, x, x2, profile=False):
+    def forward_once(self, x, profile=False):
         """
 
         :param x:          RGB Inputs
@@ -240,6 +240,8 @@ class Model(nn.Module):
         :param profile:
         :return:
         """
+        x2=x[:, 3:, :, :]
+        x=x[:, :3, :, :]
         y, dt = [], []  # outputs
         i = 0
         for m in self.model:
@@ -519,7 +521,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
                 #[cin,cout,n]
         elif m is Concat2:
             
-            c1 = ch[f[0]]*2
+            c1 = ch[f[0]]+ch[f[1]]
             c2 = ch[f[0]]
             args = [c1,c2]
         elif m is nn.BatchNorm2d:

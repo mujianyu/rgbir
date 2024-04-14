@@ -9,6 +9,8 @@ import sys
 import time
 from pathlib import Path
 
+#import models.common
+
 sys.path.append(Path(__file__).parent.parent.absolute().__str__())  # to run '$ python *.py' files in subdirectories
 
 import torch
@@ -23,7 +25,7 @@ from utils.torch_utils import select_device
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='./yolov5s.pt', help='weights path')
+    parser.add_argument('--weights', type=str, default='/home/mjy/yolov5/runs/train/exp/weights/best.pt', help='weights path')
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='image size')  # height, width
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--grid', action='store_true', help='export Detect() layer grid')
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     opt.img_size = [check_img_size(x, gs) for x in opt.img_size]  # verify img_size are gs-multiples
 
     # Input
-    img = torch.zeros(opt.batch_size, 3, *opt.img_size).to(device)  # image size(1,3,320,192) iDetection
+    img = torch.zeros(opt.batch_size, 4, *opt.img_size).to(device)  # image size(1,3,320,192) iDetection
 
     # Update model
     for k, m in model.named_modules():
@@ -58,31 +60,33 @@ if __name__ == '__main__':
                 m.act = SiLU()
         # elif isinstance(m, models.yolo.Detect):
         #     m.forward = m.forward_export  # assign forward (optional)
-    model.model[-1].export = not opt.grid  # set Detect() layer grid export
+    #model.model[-1].export = not opt.grid  # set Detect() layer grid export
+
     for _ in range(2):
         y = model(img)  # dry runs
+
     print(f"\n{colorstr('PyTorch:')} starting from {opt.weights} ({file_size(opt.weights):.1f} MB)")
 
-    # TorchScript export -----------------------------------------------------------------------------------------------
-    prefix = colorstr('TorchScript:')
-    try:
-        print(f'\n{prefix} starting export with torch {torch.__version__}...')
-        f = opt.weights.replace('.pt', '.torchscript.pt')  # filename
-        ts = torch.jit.trace(model, img, strict=False)
-        ts = optimize_for_mobile(ts)  # https://pytorch.org/tutorials/recipes/script_optimized.html
-        ts.save(f)
-        print(f'{prefix} export success, saved as {f} ({file_size(f):.1f} MB)')
-    except Exception as e:
-        print(f'{prefix} export failure: {e}')
+    # # TorchScript export -----------------------------------------------------------------------------------------------
+    # prefix = colorstr('TorchScript:')
+    # try:
+    #     print(f'\n{prefix} starting export with torch {torch.__version__}...')
+    #     f = opt.weights.replace('.pt', '.torchscript.pt')  # filename
+    #     ts = torch.jit.trace(model, img, strict=False)
+    #     ts = optimize_for_mobile(ts)  # https://pytorch.org/tutorials/recipes/script_optimized.html
+    #     ts.save(f)
+    #     print(f'{prefix} export success, saved as {f} ({file_size(f):.1f} MB)')
+    # except Exception as e:
+    #     print(f'{prefix} export failure: {e}')
 
-    # ONNX export ------------------------------------------------------------------------------------------------------
+    # # ONNX export ------------------------------------------------------------------------------------------------------
     prefix = colorstr('ONNX:')
     try:
         import onnx
 
         print(f'{prefix} starting export with onnx {onnx.__version__}...')
         f = opt.weights.replace('.pt', '.onnx')  # filename
-        torch.onnx.export(model, img, f, verbose=False, opset_version=12, input_names=['images'],
+        torch.onnx.export(model, img, f, verbose=False, opset_version=12, input_names=['images'], output_names=["output_0"],
                           dynamic_axes={'images': {0: 'batch', 2: 'height', 3: 'width'},  # size(1,3,640,640)
                                         'output': {0: 'batch', 2: 'y', 3: 'x'}} if opt.dynamic else None)
 
@@ -109,19 +113,19 @@ if __name__ == '__main__':
     except Exception as e:
         print(f'{prefix} export failure: {e}')
 
-    # CoreML export ----------------------------------------------------------------------------------------------------
-    prefix = colorstr('CoreML:')
-    try:
-        import coremltools as ct
+    # # CoreML export ----------------------------------------------------------------------------------------------------
+    # prefix = colorstr('CoreML:')
+    # try:
+    #     import coremltools as ct
 
-        print(f'{prefix} starting export with coremltools {ct.__version__}...')
-        # convert model from torchscript and apply pixel scaling as per detect.py
-        model = ct.convert(ts, inputs=[ct.ImageType(name='image', shape=img.shape, scale=1 / 255.0, bias=[0, 0, 0])])
-        f = opt.weights.replace('.pt', '.mlmodel')  # filename
-        model.save(f)
-        print(f'{prefix} export success, saved as {f} ({file_size(f):.1f} MB)')
-    except Exception as e:
-        print(f'{prefix} export failure: {e}')
+    #     print(f'{prefix} starting export with coremltools {ct.__version__}...')
+    #     # convert model from torchscript and apply pixel scaling as per detect.py
+    #     model = ct.convert(ts, inputs=[ct.ImageType(name='image', shape=img.shape, scale=1 / 255.0, bias=[0, 0, 0])])
+    #     f = opt.weights.replace('.pt', '.mlmodel')  # filename
+    #     model.save(f)
+    #     print(f'{prefix} export success, saved as {f} ({file_size(f):.1f} MB)')
+    # except Exception as e:
+    #     print(f'{prefix} export failure: {e}')
 
-    # Finish
-    print(f'\nExport complete ({time.time() - t:.2f}s). Visualize with https://github.com/lutzroeder/netron.')
+    # # Finish
+    # print(f'\nExport complete ({time.time() - t:.2f}s). Visualize with https://github.com/lutzroeder/netron.')
