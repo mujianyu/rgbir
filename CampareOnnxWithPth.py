@@ -7,8 +7,8 @@ import numpy as np
 def to_numpy(tensor):
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
  
-onnx_weights = '/home/mjy/yolov5/runs/train/exp10/weights/best.onnx'  # onnx权重路径
-torch_weights = '/home/mjy/yolov5/runs/train/exp10/weights/best.pt'  # torch权重路径
+onnx_weights = '/home/mjy/yolov5/runs/train/exp30/weights/best.onnx'  # onnx权重路径
+torch_weights = '/home/mjy/yolov5/runs/train/exp30/weights/best.pt'  # torch权重路径
 session = onnxruntime.InferenceSession(onnx_weights)
 model = attempt_load(torch_weights)
  

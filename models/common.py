@@ -58,16 +58,18 @@ class Concat3(nn.Module):
         # 注意：我们需要将索引重塑为 (batch_size * k,)，以匹配 x 的形状  
         # 然后，使用这些索引来选择 x 中的对应通道  
         selected_channels = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, self.k, height, width)  
-  
+
+
   
        
           
         return selected_channels  
 
-class Concat3(nn.Module):  
+class Concat4(nn.Module):  
     def __init__(self, c1, c2, dimension=1):  
-        super(Concat3, self).__init__()  
-        self.k = c2  
+        super(Concat4, self).__init__()  
+        self.k = c2
+        self.c1=c1  
         self.d = dimension  
         self.avg=nn.AdaptiveAvgPool2d(output_size=(1, 1)) 
     def forward(self, x):  
@@ -76,17 +78,139 @@ class Concat3(nn.Module):
         batch_size, num_channels, height, width = x.size()  
           
         pooled = self.avg(x).squeeze(-1).squeeze(-1)  
-        pooled_values, pooled_indices = torch.topk(pooled, self.k, dim=1)  
+
+        pooled_values, pooled_indices = torch.topk(pooled, num_channels, dim=1) 
+       
+
+
         pooled_indices_flat = pooled_indices.view(-1)  
           
         batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
         batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
           
         combined_indices = pooled_indices_flat + batch_range  
-        selected_channels = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, self.k, height, width)  
-          
-        return selected_channels  
+        x = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, num_channels, height, width)  
+        # 计算从第k个通道到最后一个通道的和  
+        sum_from_k = x[:, self.k:, :, :].sum(dim=1, keepdim=True)  
+        
   
+        x[:, self.k-1, :, :] += sum_from_k[:, 0, :, :]
+        
+
+  
+        return x[:,:self.k,:,:]  
+class Concat5(nn.Module):  
+    def __init__(self, c1, c2, dimension=1):  
+        super(Concat5, self).__init__()  
+        self.k = c2
+        self.c1=c1  
+        self.d = dimension  
+        self.avg=nn.AdaptiveAvgPool2d(output_size=(1, 1)) 
+    def forward(self, x):  
+        x = torch.cat(x, self.d)  
+
+        batch_size, num_channels, height, width = x.size()  
+          
+        pooled = self.avg(x).squeeze(-1).squeeze(-1)  
+
+        pooled_values, pooled_indices = torch.topk(pooled, num_channels, dim=1) 
+       
+
+
+        pooled_indices_flat = pooled_indices.view(-1)  
+          
+        batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
+        batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
+          
+        combined_indices = pooled_indices_flat + batch_range  
+        x = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, num_channels, height, width)  
+        # 计算从第k个通道到最后一个通道的和  
+        
+        y=x[:,self.k:,:,:]
+        x=x[:,:self.k,:,:]
+
+        x[:, -num_channels+self.k:, :, :] += y
+        
+
+  
+        return x[:,:self.k,:,:]  
+
+class Concat5(nn.Module):  
+    def __init__(self, c1, c2, dimension=1):  
+        super(Concat5, self).__init__()  
+        self.k = c2
+        self.c1=c1  
+        self.d = dimension  
+        self.avg=nn.AdaptiveAvgPool2d(output_size=(1, 1)) 
+    def forward(self, x):  
+        x = torch.cat(x, self.d)  
+
+        batch_size, num_channels, height, width = x.size()  
+          
+        pooled = self.avg(x).squeeze(-1).squeeze(-1)  
+
+        pooled_values, pooled_indices = torch.topk(pooled, num_channels, dim=1) 
+       
+
+
+        pooled_indices_flat = pooled_indices.view(-1)  
+          
+        batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
+        batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
+          
+        combined_indices = pooled_indices_flat + batch_range  
+        x = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, num_channels, height, width)  
+        # 计算从第k个通道到最后一个通道的和  
+        
+        y=x[:,self.k:,:,:]
+        x=x[:,:self.k,:,:]
+
+        x[:, -num_channels+self.k:, :, :] += y
+        
+
+  
+        return x[:,:self.k,:,:]  
+            
+class Concat6(nn.Module):  
+    def __init__(self, c1, c2, dimension=1):  
+        super(Concat6, self).__init__()  
+        #c1 =176 c2 =128
+        self.k = c2//4*3
+        self.k1=c2-self.k
+        self.c1=c1  
+        self.conv1=nn.Conv2d(c1-self.k,self.k1, 1, 1, bias=False)
+        self.d = dimension  
+        self.avg=nn.AdaptiveAvgPool2d(output_size=(1, 1)) 
+    def forward(self, x):  
+        x = torch.cat(x, self.d)  
+
+        batch_size, num_channels, height, width = x.size()  
+          
+        pooled = self.avg(x).squeeze(-1).squeeze(-1)  
+
+        pooled_values, pooled_indices = torch.topk(pooled, num_channels, dim=1) 
+       
+
+
+        pooled_indices_flat = pooled_indices.view(-1)  
+          
+        batch_range = torch.arange(batch_size).type_as(pooled_indices) * num_channels  
+        batch_range = batch_range.view(-1, 1).expand_as(pooled_indices).contiguous().view(-1)  
+          
+        combined_indices = pooled_indices_flat + batch_range  
+        x = x.view(-1, height, width)[combined_indices.view(-1)].view(batch_size, num_channels, height, width)  
+        # 计算从第k个通道到最后一个通道的和  
+        
+        y=x[:,self.k:,:,:]
+        x=x[:,:self.k,:,:]
+
+        y=self.conv1(y)
+        x=torch.cat((x,y),self.d)
+        
+
+  
+        return x
+        
 def autopad(k, p=None):  # kernel, padding
     # Pad to 'same'
     if p is None:

@@ -14,7 +14,7 @@ from models.experimental import *
 from utils.autoanchor import check_anchor_order
 from utils.general import make_divisible, check_file, set_logging
 from utils.torch_utils import time_synchronized, fuse_conv_and_bn, model_info, scale_img, initialize_weights, \
-    select_device, copy_attr
+    select_device, copy_attr,fuse_conv_and_bnhalf
 
 try:
     import thop  # for FLOPS computation
@@ -304,7 +304,15 @@ class Model(nn.Module):
                 m.forward = m.fuseforward  # update forward
         self.info()
         return self
-
+    def fusehalf(self):  # fuse model Conv2d() + BatchNorm2d() layers
+        logger.info('Fusing layers... ')
+        for m in self.model.modules():
+            if type(m) is Conv and hasattr(m, 'bn'):
+                m.conv = fuse_conv_and_bnhalf(m.conv, m.bn)  # update conv
+                delattr(m, 'bn')  # remove batchnorm
+                m.forward = m.fuseforward  # update forward
+        self.info()
+        return self
     def nms(self, mode=True):  # add or remove NMS module
         present = type(self.model[-1]) is NMS  # last layer is NMS
         if mode and not present:
@@ -524,6 +532,21 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c1 = ch[f[0]]+ch[f[1]]
             c2 = ch[f[0]]
             args = [c1,c2]
+        elif m is Concat4:
+            
+            c1 = ch[f[0]]+ch[f[1]]
+            c2 = ch[f[0]]
+            args = [c1,c2]
+        elif m is Concat5:
+            
+            c1 = ch[f[0]]+ch[f[1]]
+            c2 = ch[f[0]]
+            args = [c1,c2]
+        elif m is Concat6:
+            
+            c1 = ch[f[0]]+ch[f[1]]
+            c2 = ch[f[0]]
+            args = [c1,c2]
         elif m is CA_Block:
             c1 = ch[f[0]]+ch[f[1]]
             c2 = ch[f[0]]
@@ -671,28 +694,63 @@ def parse_model_rgb_ir(d, ch):  # model_dict, input_channels(3)
 
     # return nn.Sequential(*layers), sorted(save)
     return model, sorted(save)
+#from thop import profile
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg', type=str, default='/home/fqy/proj/paper/YOLOFusion/models/transformer/yolov5s_fusion_transformer(x3)_vedai.yaml', help='model.yaml')
-    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    opt = parser.parse_args()
-    opt.cfg = check_file(opt.cfg)  # check file
-    set_logging()
-    device = select_device(opt.device)
-    print(device)
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--cfg', type=str, default='yolov5s.yaml', help='model.yaml')
+#     parser.add_argument('--batch-size', type=int, default=1, help='total batch size for all GPUs')
+#     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+#     parser.add_argument('--profile', action='store_true', help='profile model speed')
+#     parser.add_argument('--line-profile', action='store_true', help='profile model speed layer by layer')
+#     parser.add_argument('--test', action='store_true', help='test all yolo*.yaml')
+#     opt = parser.parse_args()
+#     opt.cfg = check_file(opt.cfg)  # check YAML
+#     set_logging()
+#     device = select_device(opt.device)
+
+#     # Create model
+#     im = torch.rand(opt.batch_size, 3, 640, 640).to(device)
+#     model = Model(opt.cfg).to(device)
+
+#     # Options
+#     if opt.line_profile:  # profile layer by layer
+#         _ = model(im, profile=True)
+
+#     elif opt.profile:  # profile forward-backward
+#         results = profile(input=im, ops=[model], n=3)
+
+#     elif opt.test:  # test all models
+#         for cfg in Path(ROOT / 'models').rglob('yolo*.yaml'):
+#             try:
+#                 _ = Model(cfg)
+#             except Exception as e:
+#                 print(f'Error in {cfg}: {e}')
 
 
-    model = Model(opt.cfg).to(device)
-    input_rgb = torch.Tensor(8, 3, 640, 640).to(device)
-    input_ir = torch.Tensor(8, 3, 640, 640).to(device)
 
-    output = model(input_rgb, input_ir)
-    print("YOLO")
-    print(output[0].shape)
-    print(output[1].shape)
-    print(output[2].shape)
+
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--cfg', type=str, default='/home/fqy/proj/paper/YOLOFusion/models/transformer/yolov5s_fusion_transformer(x3)_vedai.yaml', help='model.yaml')
+#     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+#     opt = parser.parse_args()
+#     opt.cfg = check_file(opt.cfg)  # check file
+#     set_logging()
+#     device = select_device(opt.device)
+#     print(device)
+
+
+#     model = Model(opt.cfg).to(device)
+#     input_rgb = torch.Tensor(8, 3, 640, 640).to(device)
+#     input_ir = torch.Tensor(8, 3, 640, 640).to(device)
+
+#     output = model(input_rgb, input_ir)
+#     print("YOLO")
+#     print(output[0].shape)
+#     print(output[1].shape)
+#     print(output[2].shape)
     # print(output)
 
     # # Create model

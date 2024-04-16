@@ -25,7 +25,7 @@ from utils.torch_utils import select_device
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='/home/mjy/yolov5/runs/train/exp10/weights/best.pt', help='weights path')
+    parser.add_argument('--weights', type=str, default='/home/mjy/yolov5/runs/train/exp30/weights/best.pt', help='weights path')
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='image size')  # height, width
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--grid', action='store_true', help='export Detect() layer grid')
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     print(opt)
     set_logging()
     t = time.time()
-
+    
     # Load PyTorch model
     device = select_device(opt.device)
     model = attempt_load(opt.weights, map_location=device)  # load FP32 model
